@@ -1,0 +1,17 @@
+{application, botbop,[
+	{description, "websocket bot server"},
+	{vsn, "1"},
+	{registered, []},
+	{applications, [
+		kernel,
+		stdlib,
+		ssl
+	]},
+	{mod, { botbop_app, [ botbop ]}},
+	{env, [
+		{ port, 8088 },
+		{ tls_port, 8888 },
+		{ tls_cert, "cert.pem" },
+		{ tls_key, "key.pem" }
+	]}
+]}.
