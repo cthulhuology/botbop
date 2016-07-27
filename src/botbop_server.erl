@@ -6,7 +6,7 @@
 -export([ code_change/3, handle_call/3, handle_cast/2, handle_info/2, init/1,
 	terminate/2 ]).
 
--record(botbop_server, {}).
+-record(botbop_server, { rooms }).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Public API
@@ -29,7 +29,7 @@ dispatch(Pid,Message) ->
 %
 
 init([]) ->
-	{ ok, #botbop_server{}}.
+	{ ok, #botbop_server{ rooms = [] }}.
 
 handle_call(stop,_From,State) ->
 	{ stop, stopped, State };
@@ -38,6 +38,24 @@ handle_call(Message,_From,State) ->
 	io:format("[botbop_server] unknown message ~p~n", [ Message ]),
 	{ reply, ok, State }.
 
+handle_cast({ Path, Pid, connected}, State = #botbop_server{ rooms = Rooms }) ->
+	case proplists:lookup(Path,Rooms) of
+		none -> 
+			{ noreply, State#botbop_server{ rooms = [ { Path, [ Pid ]} | Rooms ] }};
+		{ Path, Users } ->
+			{ noreply, State#botbop_server{ rooms = [ { Path, [ Pid | Users ] } | proplists:delete(Path,Rooms)]}}
+	end;
+
+handle_cast({ Path, Pid, Message }, State = #botbop_server{ rooms = Rooms }) ->
+	case proplists:lookup(Path,Rooms) of
+		none ->
+			{ noreply, State };
+		{ Path, Users } ->
+			lists:map(fun(U) -> websocket:send(U,Message) end,
+				lists:filter(fun(U) -> U =/= Pid end, Users)),
+			{ noreply, State }
+	end;
+	
 handle_cast(Message,State) ->
 	io:format("[botbop_server] unknown message ~p~n", [ Message ]),
 	{ noreply, State }.

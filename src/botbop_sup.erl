@@ -47,13 +47,15 @@ init([]) ->
 		shutdown => brutal_kill,
 		type => worker,
 		modules => [ websocket_server, websocket, websocket_rfc6455 ] 
-	},#{
-		id => ?WEBSOCKET_SERVER(TLSPort),
-		start => { websocket_server, start_link, [botbop_server,dispatch,TLSPort,TLSCert,TLSKey]},
-		restart => permanent,
-		shutdown => brutal_kill,
-		type => worker,
-		modules => [ websocket_server, websocket, websocket_rfc6455 ] 
+	}
+%%,#{
+%%		id => ?WEBSOCKET_SERVER(TLSPort),
+%%		start => { websocket_server, start_link, [botbop_server,dispatch,TLSPort,TLSCert,TLSKey]},
+%%		restart => permanent,
+%%		shutdown => brutal_kill,
+%%		type => worker,
+%%		modules => [ websocket_server, websocket, websocket_rfc6455 ] 
 
-	}]}}.
+%%	}
+	]}}.
 
