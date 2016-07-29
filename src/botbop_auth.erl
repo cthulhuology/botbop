@@ -2,13 +2,13 @@
 -author({ "David J Goehrig", "dave@dloh.org" }).
 -copyright(<<"© 2016 David J Goehrig"/utf8>>).
 -behavior(gen_server).
--export([ start_link/0, stop/0, install/2, auth/2, stream/1, user/4, provision/2 ]).
+-export([ start_link/0, stop/0, install/2, auth/2, stream/1, user/4, provision/2, paid/2, ban/1 ]).
 -export([ code_change/3, handle_call/3, handle_cast/2, handle_info/2, init/1,
 	terminate/2 ]).
 
 -record(botbop_auth, {}).
 -record(botbop_users, { id, name, email, address, created, paid, active, tokens=[], streams=[] }).
--record(botbop_streams, { id, name, tokens=[] }).
+-record(botbop_streams, { id, name, active, tokens=[] }).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Public API
@@ -55,6 +55,14 @@ user(Name,Email,Address,Paid) ->
 provision(User,Stream) ->
 	gen_server:call(?MODULE, { provision, User, Stream }).
 
+%% updates the paid timestamp for the user
+paid(User,Time) ->
+	gen_server:call(?MODULE, { paid, User, Time }).
+
+%% deactivates a user
+ban(User) ->
+	gen_server:call(?MODULE, { ban, User }).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Private API
@@ -73,9 +81,9 @@ handle_call(stop,_From,State) ->
 handle_call({ auth, Token, Stream }, _From, State) ->
 	F = fun() ->
 		case mnesia:read(botbop_streams, Stream) of
-			[ #botbop_streams{ tokens = Tokens } ] -> 
+			[ #botbop_streams{ tokens = Tokens, active = true } ] -> 
 				lists:member(Token,Tokens);
-			[] ->
+			_ ->
 				false
 		end
 	end,
@@ -85,7 +93,7 @@ handle_call({ auth, Token, Stream }, _From, State) ->
 handle_call({ stream, Stream }, _From, State ) ->
 	Id = uuid:new(),
 	F = fun() ->
-		ok = mnesia:write(#botbop_streams{ id = Id, name = Stream, tokens = [] })
+		ok = mnesia:write(#botbop_streams{ id = Id, name = Stream, active = true, tokens = [] })
 	end,
 	ok = mnesia:activity(transaction,F),
 	{ reply, Id, State };	
@@ -103,7 +111,7 @@ handle_call({ provision, User, Stream }, _From, State) ->
 	Token = uuid:new(),
 	F = fun() ->
 		case mnesia:read(botbop_users, User) of 
-			[ Bob = #botbop_users{ tokens = Tokens, streams = Streams } ] ->
+			[ Bob = #botbop_users{ tokens = Tokens, streams = Streams, active = true } ] ->
 				ok = mnesia:write( Bob#botbop_users{ tokens = [ Token | Tokens], streams = [ Stream | lists:delete(Stream,Streams) ]});
 			[] -> 
 				mnesia:abort(no_such_user)
@@ -112,12 +120,42 @@ handle_call({ provision, User, Stream }, _From, State) ->
 			[ Flow = #botbop_streams{ tokens = Tokes } ] ->
 				mnesia :write( Flow#botbop_streams{ tokens = [ Token | Tokes ] });
 			[] -> 
-				mnesia:abor(no_such_stream)
+				mnesia:abort(no_such_stream)
 		end
 	end,
 	mnesia:activity(transaction,F),
 	{ reply, Token, State };
 
+handle_call({ paid, User, Time }, _From, State) ->
+	F = fun() ->
+		case mnesia:read(botbop_users, User) of
+			[ Bob = #botbop_users{} ] ->
+				ok = mnesia:write( Bob#botbop_users{ paid =  Time, active = true } );	
+			[] ->
+				mnesia:abort(no_such_user)
+		end
+	end,
+	{ reply, mnesia:activity(transaction,F), State };
+
+handle_call({ ban, User }, _From, State) ->
+	F = fun() ->
+		case mnesia:read(botbop_users, User) of
+			[ Bob = #botbop_users{ streams = Streams } ] ->
+				ok = mnesia:write(Bob#botbop_users{ active = false }),
+				[ 
+					case mnesia:read(botbop_streams,Stream) of
+						[ S = #botbop_streams{}] -> 
+							mnesia:write(S#botbop_streams{ active = false }); 
+						[] ->
+							ok
+					end
+				|| Stream <- Streams ];
+			[] ->
+				mnesia:abort(no_such_user)
+		end
+	end,
+	{ reply, mnesia:activity(transaction,F), State };
+			
 handle_call(Message,_From,State) ->
 	io:format("[botbop_auth] unknown message ~p~n", [ Message ]),
 	{ reply, ok, State }.
