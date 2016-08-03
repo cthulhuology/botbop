@@ -46,6 +46,9 @@ handle_cast({ Path, Pid, connected}, State = #botbop_server{ rooms = Rooms }) ->
 			{ noreply, State#botbop_server{ rooms = [ { Path, [ Pid | Users ] } | proplists:delete(Path,Rooms)]}}
 	end;
 
+handle_case({ Path, Pid, closed}, State = #botbop_server{ rooms = Rooms }) ->
+	case 
+
 handle_cast({ Path, Pid, Message }, State = #botbop_server{ rooms = Rooms }) ->
 	case proplists:lookup(Path,Rooms) of
 		none ->
