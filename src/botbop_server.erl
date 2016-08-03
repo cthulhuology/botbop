@@ -2,7 +2,7 @@
 -author({ "David J Goehrig", "dave@dloh.org" }).
 -copyright(<<"© 2016 David J Goehrig"/utf8>>).
 -behavior(gen_server).
--export([ start_link/0, stop/0, dispatch/2 ]).
+-export([ start_link/0, stop/0, dispatch/2, rooms/0, users/1 ]).
 -export([ code_change/3, handle_call/3, handle_cast/2, handle_info/2, init/1,
 	terminate/2 ]).
 
@@ -22,6 +22,12 @@ dispatch(Pid,Message) ->
 	Path = websocket:path(Pid),
 	io:format("message to ~p is ~p~n", [ Path,Message ]),
 	gen_server:cast(?MODULE, { Path, Pid, Message }).
+
+rooms() ->
+	gen_server:call(?MODULE, rooms).
+
+users(Path) ->
+	gen_server:call(?MODULE, { users, Path }).
 	
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -33,6 +39,17 @@ init([]) ->
 
 handle_call(stop,_From,State) ->
 	{ stop, stopped, State };
+
+handle_call(rooms,_From,State = #botbop_server{ rooms = Rooms }) ->
+	{ reply, Rooms, State };
+
+handle_call({users,Path},_From,State = #botbop_server{ rooms = Rooms }) ->
+	case proplists:lookup(Path,Rooms) of
+		none ->
+			{ reply, [], State };
+		{ Path, Users } ->
+			{ reply, Users, State }
+	end;
 
 handle_call(Message,_From,State) ->
 	io:format("[botbop_server] unknown message ~p~n", [ Message ]),
@@ -46,8 +63,13 @@ handle_cast({ Path, Pid, connected}, State = #botbop_server{ rooms = Rooms }) ->
 			{ noreply, State#botbop_server{ rooms = [ { Path, [ Pid | Users ] } | proplists:delete(Path,Rooms)]}}
 	end;
 
-handle_case({ Path, Pid, closed}, State = #botbop_server{ rooms = Rooms }) ->
-	case 
+handle_cast({ Path, Pid, closed}, State = #botbop_server{ rooms = Rooms }) ->
+	case proplists:lookup(Path,Rooms) of
+		none ->
+			{ noreply, State };
+		{ Path, Users } ->
+			{ noreply, State#botbop_server{ rooms = [ { Path, lists:delete(Pid,Users) } | proplists:delete(Path,Rooms)]}}
+	end;
 
 handle_cast({ Path, Pid, Message }, State = #botbop_server{ rooms = Rooms }) ->
 	case proplists:lookup(Path,Rooms) of
