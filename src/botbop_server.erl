@@ -2,7 +2,7 @@
 -author({ "David J Goehrig", "dave@dloh.org" }).
 -copyright(<<"© 2016 David J Goehrig"/utf8>>).
 -behavior(gen_server).
--export([ start_link/1, stop/0, dispatch/2, rooms/0, users/1 ]).
+-export([ start_link/1, stop/0, dispatch/3, rooms/0, users/1 ]).
 -export([ code_change/3, handle_call/3, handle_cast/2, handle_info/2, init/1,
 	terminate/2 ]).
 
@@ -18,9 +18,8 @@ start_link(Port) ->
 stop() ->
 	gen_server:call(?MODULE,stop).
 
-dispatch(Pid,Message) ->
-	Path = websocket:path(Pid),
-	io:format("message to ~p is ~p~n", [ Path,Message ]),
+dispatch(Pid,Path,Message) ->
+	io:format("dispatching ~p to ~p for ~p~n", [ Message, Path, Pid ]),
 	gen_server:cast(?MODULE, { Path, Pid, Message }).
 
 rooms() ->
