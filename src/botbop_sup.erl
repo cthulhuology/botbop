@@ -23,39 +23,17 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-	{ ok, Port } = application:get_env(botbop,port),
-	{ ok, TLSPort } = application:get_env(botbop,tls_port),
-	{ ok, TLSCert } = application:get_env(botbop,tls_cert),
-	{ ok, TLSKey } = application:get_env(botbop,tls_key),
-	{ ok, { 
-		#{ 
-			strategy => one_for_one, 
-			intensity => 5, 
-			period => 10 
-		},[
-	#{
-		id => botbop_server,
-		start => { botbop_server, start_link, []},
+	{ ok, Port } = application:get_env(port),
+	{ ok, { #{ 
+		strategy => one_for_one, 
+		intensity => 5, 
+		period => 10 
+	},[#{
+		id => { local, botbop_server },
+		start => { botbop_server, start_link, [Port]},
 		restart => permanent,
 		shutdown => brutal_kill,
 		type => worker,
 		modules => [ botbop_server ] 
-	},#{
-		id => ?WEBSOCKET_SERVER(Port),
-		start => { websocket_server, start_link, [botbop_server,dispatch,Port]},
-		restart => permanent,
-		shutdown => brutal_kill,
-		type => worker,
-		modules => [ websocket_server, websocket, websocket_rfc6455 ] 
-	}
-%%,#{
-%%		id => ?WEBSOCKET_SERVER(TLSPort),
-%%		start => { websocket_server, start_link, [botbop_server,dispatch,TLSPort,TLSCert,TLSKey]},
-%%		restart => permanent,
-%%		shutdown => brutal_kill,
-%%		type => worker,
-%%		modules => [ websocket_server, websocket, websocket_rfc6455 ] 
-
-%%	}
-	]}}.
+	}]}}.
 

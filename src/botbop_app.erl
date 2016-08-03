@@ -10,7 +10,8 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    botbop_sup:start_link().
+	application:ensure_all_started(websocket),
+	botbop_sup:start_link().
 
 stop(_State) ->
-    ok.
+	ok.

@@ -5,13 +5,21 @@
 	{applications, [
 		kernel,
 		stdlib,
-		ssl
+		ssl,
+		websocket
+	]},
+	{ modules, [
+		botbop_app,
+		botbop_sup,
+		botbop_server,
+		botbop_auth,
+		botbop_room
 	]},
 	{mod, { botbop_app, [ botbop ]}},
 	{env, [
 		{ port, 8088 },
-		{ tls_port, 8888 },
-		{ tls_cert, "cert.pem" },
-		{ tls_key, "key.pem" }
+		{ cacertfile, "cacert.pem" },
+		{ certfile, "cert.pem" },
+		{ keyfile, "key.pem" }
 	]}
 ]}.

@@ -8,7 +8,7 @@
 %
 
 start() ->
-	application:start(botbop).
+	application:ensure_all_started(botbop).
 
 stop() ->
 	application:stop(botbop).
