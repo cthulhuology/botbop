@@ -35,5 +35,12 @@ init([]) ->
 		shutdown => brutal_kill,
 		type => worker,
 		modules => [ botbop_server ] 
+	},#{
+		id => { local, botbop_auth },
+		start => { botbop_auth, start_link, []},
+		restart => permanent,
+		shutdown => brutal_kill,
+		type => worker,
+		modules => [ botbop_auth ]
 	}]}}.
 
