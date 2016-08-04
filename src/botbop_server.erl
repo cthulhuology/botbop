@@ -56,13 +56,24 @@ handle_call(Message,_From,State) ->
 	{ reply, ok, State }.
 
 handle_cast({ Path, User, connected}, State = #botbop_server{ rooms = Rooms }) ->
-	case proplists:lookup(Path,Rooms) of
-		none -> 
-			{ ok, Room } = botbop_room:start_link(Path),
-			botbop_room:join(Room,User),
-			{ noreply, State#botbop_server{ rooms = [ { Path, Room } | Rooms ] }};
-		{ Path, Room } ->
-			botbop_room:join(Room,User),
+	Token = websocket:subprotocol(User),	%% grab the Sec-WebSocket-Protocol field which we must have a valid auth token
+	Stream = botbop_auth:stream(Path),
+	io:format("stream ~p vs ~p~n", [ Stream, Path ]),
+	case botbop_auth:auth(Token,Stream) of
+		true ->
+			case proplists:lookup(Path,Rooms) of
+				none -> 
+					{ ok, Room } = botbop_room:start_link(Path),
+					botbop_room:join(Room,User),
+					{ noreply, State#botbop_server{ rooms = [ { Path, Room } | Rooms ] }};
+				{ Path, Room } ->
+					botbop_room:join(Room,User),
+					{ noreply, State }
+			end;
+		_ ->
+			% kill the socket if we get anything other than true
+			io:format("failed to authenticate ~p, ~p ~p~n", [ Token, Path, Stream ]),
+			websocket:stop(User),
 			{ noreply, State }
 	end;
 

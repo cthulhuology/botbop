@@ -2,9 +2,8 @@
 -author({ "David J Goehrig", "dave@dloh.org" }).
 -copyright(<<"© 2016 David J Goehrig"/utf8>>).
 -behavior(gen_server).
--export([ start_link/0, stop/0, install/2, auth/2, stream/1, user/4, provision/2, paid/2, ban/1, reactivate/1 ]).
--export([ code_change/3, handle_call/3, handle_cast/2, handle_info/2, init/1,
-	terminate/2 ]).
+-export([ start_link/0, stop/0, install/2, auth/2, stream/1, user/4, user/1, provision/2, paid/2, ban/1, reactivate/1 ]).
+-export([ code_change/3, handle_call/3, handle_cast/2, handle_info/2, init/1, terminate/2 ]).
 
 -record(botbop_auth, {}).
 -record(botbop_users, { id, name, email, address, created, paid, active, tokens=[], streams=[] }).
@@ -51,6 +50,9 @@ stream(Stream) ->
 user(Name,Email,Address,Paid) ->
 	gen_server:call(?MODULE, { user, Name, Email, Address, Paid }).
 
+user(Email) ->
+	gen_server:call(?MODULE, { user, Email }).
+
 %% provisions a new token for a User & Stream
 provision(User,Stream) ->
 	gen_server:call(?MODULE, { provision, User, Stream }).
@@ -94,11 +96,18 @@ handle_call({ auth, Token, Stream }, _From, State) ->
 	{ reply, Authed, State };
 
 handle_call({ stream, Stream }, _From, State ) ->
-	Id = uuid:new(),
 	F = fun() ->
-		ok = mnesia:write(#botbop_streams{ id = Id, name = Stream, active = true, tokens = [] })
+		Pattern = #botbop_streams{ _ = '_',  name = Stream },
+		case mnesia:match_object(Pattern) of
+			[ #botbop_streams{ id = Id } ] ->
+				Id;
+			_ ->
+				Id = uuid:new(),
+				ok = mnesia:write(#botbop_streams{ id = Id, name = Stream, active = true, tokens = [] }),
+				Id
+		end
 	end,
-	ok = mnesia:activity(transaction,F),
+	Id = mnesia:activity(transaction,F),
 	{ reply, Id, State };	
 
 handle_call({ user, Name, Email, Address, Paid }, _From, State) ->
@@ -108,6 +117,20 @@ handle_call({ user, Name, Email, Address, Paid }, _From, State) ->
 			created = erlang:system_time(), active = true, tokens = [], streams = [] })
 	end,
 	ok = mnesia:activity(transaction,F),
+	{ reply, Id, State };
+
+
+handle_call({ user, Email }, _From, State) ->
+	F = fun() ->
+		Pattern = #botbop_users{ _ = '_', email = Email },
+		case mnesia:match_object(Pattern) of
+			[ #botbop_users{ id = Id } ] ->
+				Id;
+			_ ->	
+				<<"">>
+		end
+	end,
+	Id = mnesia:activity(transaction,F),
 	{ reply, Id, State };
 			
 handle_call({ provision, User, Stream }, _From, State) ->
