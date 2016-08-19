@@ -8,8 +8,6 @@
 %% Supervisor callbacks
 -export([init/1]).
 
--define(WEBSOCKET_SERVER(P), list_to_atom("websocket_server_" ++ integer_to_list(P))).
-
 
 %% ===================================================================
 %% API functions
@@ -23,14 +21,13 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-	{ ok, Port } = application:get_env(port),
 	{ ok, { #{ 
 		strategy => one_for_one, 
 		intensity => 5, 
 		period => 10 
 	},[#{
 		id => { local, botbop_server },
-		start => { botbop_server, start_link, [Port]},
+		start => { botbop_server, start_link, []},
 		restart => permanent,
 		shutdown => brutal_kill,
 		type => worker,
