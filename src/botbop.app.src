@@ -15,5 +15,28 @@
 		botbop_room
 	]},
 	{mod, { botbop_app, [ botbop ]}},
-	{env, [ ]}
+	{env, [ 
+		{ nodes, [ botbop@localhost ]},
+		{ tables, [ webpage_auth, webpage_rest, webpage_file ]},
+		{ table_timeout, 20000 },
+		{ salt, <<"thisisareallyterriblesaltdon'tuse">> },
+		{ cacertfile, "cacert.pem" },
+		{ certfile, "cert.pem" },
+		{ keyfile, "key.pem" },
+		{ webpage, [
+			{
+				webpage_server_4433,
+				webpage_server,
+				[ webpage_router, 4433 ],
+				[ webpage_router, webpage, webpage_server ]
+			},
+			{
+				webpage_router,
+				webpage_router,
+					[],
+					[ webpage_router ]
+			}
+		]}
+	
+	]}
 ]}.
